@@ -1,0 +1,21 @@
+{
+  "name": "saucedemo-qa-automation",
+  "version": "1.0.0",
+  "description": "Prueba tecnica QA Engineer: Playwright + TypeScript + POM sobre saucedemo.com",
+  "scripts": {
+    "test": "playwright test --grep-invert \"@failure-demo|@healing-sandbox|@seed\"",
+    "test:fail": "playwright test --grep @failure-demo",
+    "test:healing": "playwright test --grep @healing-sandbox --project=chrome",
+    "test:headed": "playwright test --grep-invert \"@failure-demo|@healing-sandbox|@seed\" --headed",
+    "report": "playwright show-report",
+    "typecheck": "tsc --noEmit"
+  },
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.1",
+    "typescript": "^7.0.2"
+  }
+}
