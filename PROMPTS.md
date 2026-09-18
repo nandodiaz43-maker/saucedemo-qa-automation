@@ -179,3 +179,31 @@ Criterio: el sandbox pasa tras el healer y git diff solo muestra cambios en page
 - `seed.spec.ts` se etiquetó `@seed` y, junto con `@healing-sandbox`, se excluyó de `npm test`; el seed generado era un test vacío que habría contado como pase.
 
 **Pendiente**: el criterio "el sandbox pasa tras el healer" **no se ha verificado**. Los agentes de `.claude/agents/` y el servidor MCP no están disponibles en la sesión en la que se crearon; hay que reiniciar Claude Code, aprobar el servidor `playwright-test` de `.mcp.json` e invocar el healer. Al hacerlo, registrar aquí el diff obtenido.
+
+### Fase 7a. Resultado real de la ejecución del healer
+
+Tras reiniciar Claude Code (los agentes y el servidor MCP `playwright-test` se cargan al arrancar), se invocó el agente `playwright-test-healer` con este prompt, tal como se envió:
+
+```
+Corrige tests/healing-sandbox.spec.ts. Ejecútalo con el proyecto "chrome" (npm run test:healing
+equivale a: playwright test --grep @healing-sandbox --project=chrome). Respeta las restricciones
+de proyecto de tu definición y de CLAUDE.md: solo puedes modificar locators dentro de pages/.
+Termina con tu reporte HEALED / NOT HEALED.
+```
+
+**Reporte del agente**: `HEALED`. `TimeoutError` en `loginButton.click()`; el snapshot mostraba el botón con el mismo rol y propósito pero con nombre accesible "Login". Fallo de locator, no de aserción.
+
+**Diff real** (`git diff`, verificado por separado, no solo por el informe del agente):
+
+```diff
+--- a/pages/sandbox/SandboxLoginPage.ts
++++ b/pages/sandbox/SandboxLoginPage.ts
+-    this.loginButton = page.getByRole('button', { name: 'Log in' });
++    this.loginButton = page.getByRole('button', { name: 'Login' });
+```
+
+**Verificación**: `git status` mostró un único archivo modificado, dentro de `pages/`. La aserción del test y `tests/` quedaron intactos. `npm run typecheck` sin errores, `npm run test:healing` 1 passed, `npm test` 6 passed.
+
+**Limitación observada**: el agente no dispone de shell, así que no pudo ejecutar `typecheck` ni `npm test` (lo que `CLAUDE.md` pide al terminar); se ejecutaron manualmente. Esto se debe considerar en el paso de CI (Fase 7b).
+
+**Estado del sandbox**: tras registrar el resultado se restauró `SandboxLoginPage.ts` a su versión rota (`git checkout`) para que `npm run test:healing` siga siendo una demo repetible.
