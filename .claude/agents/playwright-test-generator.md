@@ -57,3 +57,17 @@ application behavior.
    });
    ```
    </example-generation>
+## Project restrictions (override everything above)
+
+This project uses a Page Object Model and its conventions live in `CLAUDE.md`. Read it first.
+
+1. What you generate is a **draft**, not a finished test. The raw `page.click(...)` / `page.getByX(...)` code that
+   `generator_write_test` produces breaks the rule "locators live only in `pages/`", so a draft must be integrated
+   before it is merged: move locators into `pages/` (or `pages/components/`), assertions into `expectXxx` methods,
+   and data into `data/testData.ts`. Follow the `add-test-case` skill for that step.
+2. Write drafts only under `tests/`, never overwrite `tests/purchase.spec.ts`, and never touch
+   `tests/failure-demo.spec.ts`, `tests/healing-sandbox.spec.ts` or `tests/seed.spec.ts`.
+3. Every generated test title starts with a `TC-XX` id from `TEST_MATRIX.md` and carries `{ tag: '@TC-XX' }`.
+4. Selector priority: `getByRole` > `getByPlaceholder` > `getByText` > `getByTestId` (attribute `data-test`); no XPath,
+   no `waitForTimeout`.
+5. Before finishing, state that a human must run `npm run verify`. `npm run lint` fails on raw locators in specs.

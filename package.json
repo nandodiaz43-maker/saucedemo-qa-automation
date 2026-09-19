@@ -1,14 +1,22 @@
 {
   "name": "saucedemo-qa-automation",
   "version": "1.0.0",
+  "private": true,
   "description": "Prueba tecnica QA Engineer: Playwright + TypeScript + POM sobre saucedemo.com",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "test": "playwright test --grep-invert \"@failure-demo|@healing-sandbox|@seed\"",
-    "test:fail": "playwright test --grep @failure-demo",
-    "test:healing": "playwright test --grep @healing-sandbox --project=chrome",
-    "test:headed": "playwright test --grep-invert \"@failure-demo|@healing-sandbox|@seed\" --headed",
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:fail": "cross-env PW_DEMOS=1 playwright test --grep @failure-demo",
+    "test:healing": "cross-env PW_DEMOS=1 playwright test --grep @healing-sandbox --project=chrome",
     "report": "playwright show-report",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "node scripts/check-conventions.mjs",
+    "verify": "npm run typecheck && npm run lint && npm test",
+    "notify:teams": "node scripts/teams-summary.mjs",
+    "notify:teams:dry": "node scripts/teams-summary.mjs --dry-run"
   },
   "author": "",
   "license": "ISC",
@@ -16,6 +24,7 @@
   "devDependencies": {
     "@playwright/test": "^1.63.0",
     "@types/node": "^26.6.1",
+    "cross-env": "^10.1.0",
     "typescript": "^7.0.2"
   }
 }

@@ -10,7 +10,7 @@ Lee primero `CLAUDE.md`: sus reglas aplican a todo lo de abajo.
 ## Pasos
 
 1. **Definir el caso en la matriz.** Tomar el siguiente ID libre de `TEST_MATRIX.md` (TC-04, TC-05...) y completar tipo, título, precondiciones, pasos, resultado esperado y prioridad. Si el caso ya estaba como candidato, moverlo a la tabla de automatizados.
-2. **Comprobar el comportamiento real** de la aplicación antes de escribir aserciones. No asumir mensajes de error ni URLs: abrir la página o ejecutar un test de prueba y leer el resultado. SauceDemo tiene comportamientos que no son los esperables (por ejemplo permite hacer checkout con el carrito vacío).
+2. **Comprobar el comportamiento real** de la aplicación antes de escribir aserciones. No asumir mensajes de error ni URLs: abrir la página o ejecutar un test de prueba y leer el resultado. SauceDemo tiene comportamientos que no son los esperables (por ejemplo permite hacer checkout con el carrito vacío) y sus mensajes de login llevan el prefijo `Epic sadface:`.
 3. **Reutilizar antes de crear.** Revisar `pages/`, `pages/components/` y `data/`.
    - Si falta una acción, agregarla al Page Object correspondiente.
    - Si un locator se repite entre pantallas, crear o ampliar un componente en `pages/components/`.
@@ -23,9 +23,8 @@ Lee primero `CLAUDE.md`: sus reglas aplican a todo lo de abajo.
    });
    ```
 6. **Verificar:**
-   - `npm run typecheck` sin errores.
    - `npx playwright test --grep @TC-04` en verde y ejecuta solo ese caso.
-   - `npm test` completo en verde.
+   - `npm run verify` (typecheck + lint de convenciones + suite completa) en verde. `npm run lint` falla si el spec usa locators directos, `waitForTimeout`, `.only`/`.skip`, credenciales incrustadas, o no lleva su ID y tag.
 7. **Registrar** en `PROMPTS.md` el prompt real que se usó.
 
 ## Casos de datos variables

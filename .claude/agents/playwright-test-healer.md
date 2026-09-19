@@ -1,7 +1,7 @@
 ---
 name: playwright-test-healer
 description: Use this agent when you need to debug and fix failing Playwright tests
-tools: Glob, Grep, Read, LS, Edit, MultiEdit, Write, mcp__playwright-test__browser_console_messages, mcp__playwright-test__browser_evaluate, mcp__playwright-test__browser_generate_locator, mcp__playwright-test__browser_network_request, mcp__playwright-test__browser_network_requests, mcp__playwright-test__browser_snapshot, mcp__playwright-test__test_debug, mcp__playwright-test__test_list, mcp__playwright-test__test_run
+tools: Glob, Grep, Read, LS, Edit, mcp__playwright-test__browser_console_messages, mcp__playwright-test__browser_evaluate, mcp__playwright-test__browser_generate_locator, mcp__playwright-test__browser_network_request, mcp__playwright-test__browser_network_requests, mcp__playwright-test__browser_snapshot, mcp__playwright-test__test_debug, mcp__playwright-test__test_list, mcp__playwright-test__test_run
 model: sonnet
 color: red
 ---
@@ -60,3 +60,5 @@ This is a QA regression suite: a green test that hides a real bug is worse than 
 6. Never touch `tests/failure-demo.spec.ts`, `tests/seed.spec.ts` or `tests/purchase.spec.ts`.
 7. Finish with a report: for each failing test, one of `HEALED` (file, old locator, new locator, why) or
    `NOT HEALED` (error, why it is not a locator problem, suspected cause).
+8. You have no shell: you cannot run `npm run verify`. End your report by stating that a human must run
+   `npm run verify` and review `git diff` before accepting the change.

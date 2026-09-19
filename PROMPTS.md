@@ -2,7 +2,11 @@
 
 Herramienta de IA utilizada: **Claude (Claude Code, modelo Claude Sonnet 5)**.
 
-> **Nota de transparencia.** El único prompt enviado literalmente a la IA fue el enunciado de la prueba (sección 0); con él Claude Code generó la matriz, el código, la configuración y el diagnóstico en una sola sesión. Los prompts de las secciones 1 a 4 son la **formulación equivalente** de cada fase (reconstruida después), para que cada paso sea reproducible con cualquier asistente. No se enviaron de forma separada.
+> **Nota de transparencia.**
+> - El único prompt de la fase inicial fue el enunciado de la prueba (sección 0, transcrito de forma condensada: el mensaje original incluía además el texto completo del enunciado). Con él Claude Code generó la matriz, el código, la configuración y el diagnóstico en una sola sesión.
+> - Los prompts de las secciones 1 a 4 son la **formulación equivalente** de cada fase, **reconstruida después** para que cada paso sea reproducible con cualquier asistente. **No se enviaron de forma separada.**
+> - Desde "Fases de mejora" los prompts sí son los aprobados en la sesión; donde la ejecución se desvió de ellos, se indica.
+> - Las consultas de diseño y la revisión final hechas en la conversación se recogen al final, en "Guía de prompts profesionales", como **versiones profesionales equivalentes**: los mensajes originales fueron coloquiales y no se transcriben.
 
 ---
 
@@ -80,7 +84,7 @@ Crea un test aparte con un selector incorrecto a propósito (@failure-demo) que 
 
 ## 4. Diagnóstico del fallo forzado
 
-**Prompt** (se pegó el log real de `npm run test:fail` junto con el snapshot de página de `error-context.md`)
+**Prompt** (reconstruido: el log y el snapshot son reales, salen de `npm run test:fail` y de `error-context.md`, pero el diagnóstico no se pidió en una conversación aparte; lo produjo Claude Code en la misma sesión al leer esos artefactos)
 
 ```
 Explica por qué falló este test de Playwright, sé conciso y respeta las buenas prácticas de
@@ -105,7 +109,7 @@ Page snapshot:
 
 # Fases de mejora
 
-En estas fases cada prompt es el aprobado por el usuario en la sesión (propuesto por la IA, confirmado con "ok") y se ejecutó tal cual.
+En estas fases cada prompt es el propuesto por la IA y aprobado por el usuario en la sesión (confirmado con "ok"). Se ejecutó con las desviaciones que se indican en cada fase. La numeración sigue el plan aprobado, no el orden de ejecución: las fases 4, 5 y 6 (workflow de GitHub Actions, evidencia con Pages y resumen en Teams) se ejecutaron **después** de la 7a.
 
 ## Fase 1. Refactor POM (sin cambiar el comportamiento)
 
@@ -207,3 +211,166 @@ Termina con tu reporte HEALED / NOT HEALED.
 **Limitación observada**: el agente no dispone de shell, así que no pudo ejecutar `typecheck` ni `npm test` (lo que `CLAUDE.md` pide al terminar); se ejecutaron manualmente. Esto se debe considerar en el paso de CI (Fase 7b).
 
 **Estado del sandbox**: tras registrar el resultado se restauró `SandboxLoginPage.ts` a su versión rota (`git checkout`) para que `npm run test:healing` siga siendo una demo repetible.
+
+---
+
+## Fase 4. Workflow de GitHub Actions
+
+**Prompt** (el aprobado en la sesión; la instrucción de zona horaria y disparadores la dio el usuario antes)
+
+```
+Crea .github/workflows/e2e.yml con triggers: push a master, schedule (cron '0 11 * * *',
+6:00 a. m. Colombia) y workflow_dispatch. Pasos: checkout, setup-node, npm ci, instalar chrome
+y msedge con dependencias, npm test, subir playwright-report como artifact (if: always()).
+Excluye @failure-demo.
+Criterio: el workflow pasa en verde tras un push de prueba.
+```
+
+**Resultado (parcial)**: workflow creado y validado contra el esquema de GitHub Actions (`@action-validator/cli`). **El criterio (pasa en verde en GitHub) no se ha verificado todavía**: requiere subir el código.
+
+**Desviaciones**: `typecheck` y `lint` como pasos separados antes de `npm test`; `concurrency` para que dos ejecuciones se encolen sin cancelarse; artifacts adicionales (resultados JSON y trazas/videos); versiones de las actions consultadas en el momento (checkout v7, setup-node v7, upload-artifact v7, download-artifact v8, upload-pages-artifact v5, deploy-pages v5) en vez de fijarlas de memoria. `@failure-demo` queda excluido por la config, no por el workflow.
+
+---
+
+## Fase 5. Evidencia y GitHub Pages
+
+**Prompt**
+
+```
+Usa dos perfiles de evidencia: en el run diario screenshot y video 'on'; en push a master solo
+retain-on-failure. Publica playwright-report en GitHub Pages con actions/deploy-pages
+(fuente: GitHub Actions).
+Criterio: el reporte abre por URL pública con imágenes y video.
+```
+
+**Resultado (parcial)**: perfil de evidencia por variable de entorno `PW_EVIDENCE=full` (la fija el workflow en la ejecución diaria o manual con `full`); jobs `deploy` (Pages) y artifact del reporte. **Sin verificar en GitHub**: Pages aún no está habilitado en el repo y el criterio "abre por URL pública" depende de la primera ejecución.
+
+**Desviación**: además de Pages (solo guarda el último reporte), se conserva el reporte como artifact por ejecución 30 días.
+
+---
+
+## Fase 6. Resumen gerencial a Teams (URL de prueba)
+
+**Prompt** (el aprobado; el usuario pidió dejar una URL falsa para probar)
+
+```
+Añade el reporter 'json' de Playwright y un script que genere un resumen gerencial:
+estado global, casos pasados/fallidos por navegador, duración, disparador (diario o merge),
+commit, y enlace al reporte de Pages. Envíalo a Teams por webhook, guardado en el secret
+TEAMS_WEBHOOK_URL, con if: always() para que avise también cuando falla.
+Criterio: llega el mensaje al canal en un run exitoso y en uno con fallo forzado.
+```
+
+**Resultado (parcial)**: `scripts/teams-summary.mjs` y reporter JSON. Verificado **en local**:
+- Tarjeta con resultados reales: 🟢 exitosa (6/6, por navegador), 🔴 fallida (2 fallos reales de `test:fail`, con el error) y 🔴 sin resultados (sin `results.json`).
+- Envío HTTP a un servidor local que simula Teams: `POST`, `application/json`, Adaptive Card 1.4, respuesta 202.
+- URL falsa (`example.invalid`): falla con `No se pudo contactar a example.invalid (ENOTFOUND)`, código de salida 1, **sin filtrar el token** de la URL; en el workflow eso genera una advertencia y no marca la ejecución como fallida.
+
+**No verificado**: la llegada real a un canal de Teams. El criterio original ("llega el mensaje al canal") **no se cumple** con una URL falsa; se cumplirá al sustituir el secret por el webhook real de la app Workflows.
+
+**Desviación**: el aviso falla en silencio (advertencia) en vez de romper la ejecución, para que un webhook caído no oculte el resultado de las pruebas.
+
+---
+
+# Guía de prompts profesionales
+
+Las secciones siguientes recogen las consultas hechas en la conversación en su **versión profesional equivalente**. No son los mensajes que se enviaron (eran coloquiales y no se transcriben): son cómo se formularían para obtener el mismo resultado con menos rondas de aclaración.
+
+**Plantilla** (una o dos líneas por dato, sin alargar):
+
+```
+Objetivo:  qué se quiere lograr
+Contexto:  dónde (archivo, fase, cuenta, rama)
+Límites:   qué NO tocar y qué NO publicar
+Criterio:  cómo se sabrá que terminó (comando en verde, salida esperada)
+Formato:   cómo se quiere la respuesta (análisis sin cambios, diff, tabla)
+```
+
+## Revisión final y depuración
+
+**Versión profesional equivalente**
+
+```
+Objetivo:  auditar el proyecto y corregir lo que incumpla buenas prácticas.
+Contexto:  repo saucedemo-qa-automation; código, tests, documentación, PROMPTS.md y agentes de Playwright.
+Límites:   contrastar con la aplicación real cualquier afirmación de la documentación antes de darla por buena;
+           no instalar dependencias incompatibles con TypeScript 7; no subir nada a GitHub sin confirmar.
+Criterio:  npm run verify en verde; test:fail y test:healing siguen fallando por diseño.
+Formato:   tabla de hallazgos con su corrección.
+```
+
+**Qué se hizo**: línea base ejecutando todo, revisión de código, documentación, bitácora y agentes, y comprobación contra la aplicación de las afirmaciones no verificadas (mensajes de error, atributos de nombres de producto). Hallazgos y correcciones: tabla "Revisión final: hallazgos y correcciones" de [REPORTE.md](REPORTE.md).
+
+**Correcciones a esta bitácora**: la nota inicial afirmaba que los prompts se enviaron "tal como se enviaron" y no era así; la sección 4 sugería que el log se había pegado en una conversación aparte; y las fases de mejora se describían como ejecutadas "tal cual" pese a las desviaciones.
+
+**Cambios que sustituyen a decisiones anteriores**:
+- La exclusión de los demos (`@failure-demo`, `@healing-sandbox`, `@seed`) pasó de `--grep-invert` en los scripts a la config (`grepInvert` salvo `PW_DEMOS=1`), porque `npx playwright test` a secas ejecutaba 12 tests en lugar de 6. `.mcp.json` pasa `PW_DEMOS=1` para que el healer siga viendo el sandbox.
+- No se pudo usar ESLint: `typescript-eslint` exige `typescript <6.1` y el proyecto usa TypeScript 7, que además no expone `createProgram`. Se escribió `scripts/check-conventions.mjs` sin dependencias y con menor alcance; se comprobó que detecta infracciones reales.
+
+**Verificación**: `npm run verify` en verde (typecheck, lint y 6 tests).
+
+## Consultas de diseño (sin cambios de código)
+
+Hechas antes de definir las fases de mejora. La IA respondió con análisis; las decisiones están en las fases 1 a 7a.
+
+**1. Reutilización, auto-curación, navegadores, pipeline y reporte**
+
+```
+Objetivo:  analizar cómo evolucionar el proyecto: reutilizar convenciones y locators, auto-curación,
+           multi-navegador y multi-resolución, pipeline calendarizado y reporte con imágenes y video.
+Contexto:  proyecto Playwright + TypeScript + POM ya funcionando con 3 casos.
+Límites:   solo análisis; no modificar archivos.
+Criterio:  cada punto con opciones, riesgos y una recomendación.
+Formato:   una sección por tema y una lista de decisiones que debo tomar.
+```
+
+*Qué mejora*: el "sin cambios, solo análisis" pasa a ser un límite explícito y el "criterio" obliga a recibir opciones con riesgos, no una lista genérica.
+
+**2. Navegadores, disparadores y publicación del reporte**
+
+```
+Objetivo:  fijar navegadores y disparadores del pipeline y elegir dónde publicar el reporte.
+Contexto:  Chrome y Edge; ejecución diaria y tras cada merge a master.
+Límites:   comparar GitHub Pages y artifacts con criterio "más moderno y compartible".
+Criterio:  una recomendación única con sus riesgos.
+Formato:   tabla comparativa y recomendación.
+```
+
+**3. Zona horaria y canal de aviso**
+
+```
+Objetivo:  cerrar la programación y la notificación.
+Contexto:  zona horaria de Colombia; ejecutar después del merge; avisar por Microsoft Teams.
+Límites:   el aviso es un resumen gerencial (estado, casos por navegador, duración, enlace al reporte), no el log completo.
+Criterio:  prompts por fase con criterio de aceptación verificable.
+Formato:   lista de fases 1 a 6, cada una con su prompt.
+```
+
+**4. Auto-curación**
+
+```
+Objetivo:  evaluar el agente healer de Playwright antes de adoptarlo.
+Contexto:  Playwright 1.63 con init-agents disponible; suite de regresión que no debe ocultar bugs.
+Límites:   solo lectura; no generar ni modificar archivos del repo.
+Criterio:  confirmar si el agente existe en la versión instalada, qué edita y qué riesgos tiene.
+Formato:   qué hace, riesgos, cuándo curar y cuándo no, y opciones ordenadas por riesgo.
+```
+
+**5. Duda conceptual**
+
+```
+Objetivo:  entender si el healer es un agente y en qué se diferencia de un test, un skill y un prompt único.
+Formato:   comparación breve con implicaciones prácticas.
+```
+
+**6. Creación del repositorio**
+
+```
+Objetivo:  publicar el proyecto en GitHub.
+Contexto:  repo local en master con commit inicial; gh instalado.
+Límites:   repo público saucedemo-qa-automation bajo la cuenta nandodiaz43-maker; no modificar
+           la configuración global de git; revisar secretos antes del commit.
+Criterio:  gh repo view muestra PUBLIC y el push de master coincide con el local.
+```
+
+*Qué mejora*: incluir cuenta, nombre y visibilidad evitó la ronda de preguntas; en la sesión real la cuenta activa de `gh` era distinta de la identidad de git y hubo que confirmarla.

@@ -1,0 +1,142 @@
+name: E2E
+
+on:
+  push:
+    branches: [master]
+  schedule:
+    # 6:00 a. m. hora de Colombia (UTC-5, sin horario de verano). El cron de GitHub siempre es UTC.
+    - cron: '0 11 * * *'
+  workflow_dispatch:
+    inputs:
+      evidence:
+        description: 'Evidencia: failures = captura y video solo de los fallos; full = de todos los tests'
+        type: choice
+        options: [failures, full]
+        default: failures
+
+permissions:
+  contents: read
+
+# Dos ejecuciones sobre la misma rama se encolan (no se cancelan) para no perder avisos ni reportes.
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Pruebas (Chrome y Edge)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      # Ejecución diaria (o manual con "full"): evidencia completa. Merge a master: solo fallos.
+      PW_EVIDENCE: ${{ (github.event_name == 'schedule' || inputs.evidence == 'full') && 'full' || 'failures' }}
+    outputs:
+      has_report: ${{ steps.report.outputs.exists }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Instalar Chrome y Edge
+        run: npx playwright install --with-deps chrome msedge
+
+      - run: npm run typecheck
+      - run: npm run lint
+
+      - name: Ejecutar pruebas
+        run: npm test
+
+      - name: Comprobar que existe el reporte HTML
+        id: report
+        if: ${{ !cancelled() }}
+        run: |
+          if [ -f playwright-report/index.html ]; then echo "exists=true" >> "$GITHUB_OUTPUT"; else echo "exists=false" >> "$GITHUB_OUTPUT"; fi
+
+      # Descarga para quien revise una ejecución concreta (Pages solo guarda la última).
+      - name: Guardar reporte HTML
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Guardar resultados en JSON (para el resumen de Teams)
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: run-results
+          path: reports/results.json
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Guardar trazas y videos
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-artifacts
+          path: test-results
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Preparar reporte para GitHub Pages
+        if: ${{ !cancelled() && steps.report.outputs.exists == 'true' }}
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: playwright-report
+
+  deploy:
+    name: Publicar reporte en GitHub Pages
+    needs: test
+    if: ${{ !cancelled() && needs.test.outputs.has_report == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
+
+  notify:
+    name: Resumen a Teams
+    needs: [test, deploy]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Descargar resultados
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: run-results
+          path: reports
+
+      - name: Enviar resumen gerencial
+        env:
+          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          REPORT_URL: ${{ needs.deploy.outputs.page_url }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TRIGGER: ${{ github.event_name }}
+          BRANCH: ${{ github.ref_name }}
+          COMMIT_SHA: ${{ github.sha }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        # Un fallo al avisar no debe marcar como fallida la ejecución de pruebas: se deja una advertencia visible.
+        run: node scripts/teams-summary.mjs || echo "::warning title=Teams::No se pudo enviar el resumen a Teams. Revisar TEAMS_WEBHOOK_URL."
