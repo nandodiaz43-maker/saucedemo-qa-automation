@@ -226,7 +226,7 @@ Excluye @failure-demo.
 Criterio: el workflow pasa en verde tras un push de prueba.
 ```
 
-**Resultado (parcial)**: workflow creado y validado contra el esquema de GitHub Actions (`@action-validator/cli`). **El criterio (pasa en verde en GitHub) no se ha verificado todavía**: requiere subir el código.
+**Resultado**: criterio cumplido. Workflow validado contra el esquema (`@action-validator/cli`) y ejecutado en GitHub por `push` y por `workflow_dispatch`: los tres jobs (pruebas, Pages, Teams) terminaron en verde, con 6/6 tests en Chrome y Edge sobre Ubuntu. El disparador `schedule` no se puede probar a mano: se comprobará con la primera ejecución diaria (6:00 a. m. Colombia).
 
 **Desviaciones**: `typecheck` y `lint` como pasos separados antes de `npm test`; `concurrency` para que dos ejecuciones se encolen sin cancelarse; artifacts adicionales (resultados JSON y trazas/videos); versiones de las actions consultadas en el momento (checkout v7, setup-node v7, upload-artifact v7, download-artifact v8, upload-pages-artifact v5, deploy-pages v5) en vez de fijarlas de memoria. `@failure-demo` queda excluido por la config, no por el workflow.
 
@@ -243,7 +243,9 @@ retain-on-failure. Publica playwright-report en GitHub Pages con actions/deploy-
 Criterio: el reporte abre por URL pública con imágenes y video.
 ```
 
-**Resultado (parcial)**: perfil de evidencia por variable de entorno `PW_EVIDENCE=full` (la fija el workflow en la ejecución diaria o manual con `full`); jobs `deploy` (Pages) y artifact del reporte. **Sin verificar en GitHub**: Pages aún no está habilitado en el repo y el criterio "abre por URL pública" depende de la primera ejecución.
+**Resultado**: criterio cumplido. Perfil de evidencia por `PW_EVIDENCE=full` (la fija el workflow en la ejecución diaria o manual con `full`). Se habilitó Pages con `gh api` y se lanzó una ejecución manual con `full`: el reporte quedó en https://nandodiaz43-maker.github.io/saucedemo-qa-automation/ (HTTP 200) con 6 videos, y un video se descargó desde esa URL (HTTP 200).
+
+**Nota sobre las capturas**: el reporte HTML publica menos capturas que tests (3 en CI, 5 en local) porque **deduplica por contenido**: capturas idénticas comparten archivo. Se comprobó en local: 6 generadas, 5 distintas por hash SHA1, 5 publicadas.
 
 **Desviación**: además de Pages (solo guarda el último reporte), se conserva el reporte como artifact por ejecución 30 días.
 
@@ -266,7 +268,9 @@ Criterio: llega el mensaje al canal en un run exitoso y en uno con fallo forzado
 - Envío HTTP a un servidor local que simula Teams: `POST`, `application/json`, Adaptive Card 1.4, respuesta 202.
 - URL falsa (`example.invalid`): falla con `No se pudo contactar a example.invalid (ENOTFOUND)`, código de salida 1, **sin filtrar el token** de la URL; en el workflow eso genera una advertencia y no marca la ejecución como fallida.
 
-**No verificado**: la llegada real a un canal de Teams. El criterio original ("llega el mensaje al canal") **no se cumple** con una URL falsa; se cumplirá al sustituir el secret por el webhook real de la app Workflows.
+**En GitHub**: con el secret `TEAMS_WEBHOOK_URL` puesto a una URL falsa, el job de Teams terminó en verde y dejó la advertencia "No se pudo enviar el resumen a Teams"; el log muestra `No se pudo contactar a example.invalid (ENOTFOUND)` sin filtrar la URL.
+
+**No verificado**: la llegada real a un canal de Teams. El criterio original ("llega el mensaje al canal") **no se cumple** con una URL falsa; se cumplirá al sustituir el secret por el webhook real de la app Workflows. Tampoco se ha probado que Teams acepte el formato exacto de la tarjeta (Adaptive Card 1.4): solo se comprobó contra un servidor local.
 
 **Desviación**: el aviso falla en silencio (advertencia) en vez de romper la ejecución, para que un webhook caído no oculte el resultado de las pruebas.
 

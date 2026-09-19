@@ -25,7 +25,7 @@ concurrency:
 jobs:
   test:
     name: Pruebas (Chrome y Edge)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
       CI: 'true'
@@ -96,7 +96,7 @@ jobs:
     name: Publicar reporte en GitHub Pages
     needs: test
     if: ${{ !cancelled() && needs.test.outputs.has_report == 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       pages: write
       id-token: write
@@ -113,7 +113,7 @@ jobs:
     name: Resumen a Teams
     needs: [test, deploy]
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7

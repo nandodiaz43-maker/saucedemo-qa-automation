@@ -67,7 +67,8 @@ El agente no puede ejecutar `typecheck` ni la suite (no tiene shell), y su restr
 | `npx playwright test` a secas ejecutaba 12 tests, incluidos el fallo intencional, el sandbox y un seed vacío | Los demos se excluyen por defecto en la config y se activan con `PW_DEMOS=1`; `npm test` ya no necesita `--grep-invert` |
 | La matriz citaba mensajes de error sin el prefijo real `Epic sadface:` y decía "validada manualmente" | Mensajes corregidos tras leerlos de la aplicación; afirmación reformulada |
 | Los locators de producto usaban `hasText` (subcadena) | Coincidencia exacta por nombre en `ProductCard` |
-| Sin timeouts explícitos ni reporter para CI | `timeout`, `expect.timeout`, `actionTimeout`, `navigationTimeout`, reporter `github` en CI |
+| Sin timeouts explícitos ni reporter para CI | `timeout` 60 s, `expect.timeout`, `actionTimeout` y `navigationTimeout` 45 s, reporter `github` en CI |
+| **Error propio:** el `navigationTimeout` de 20 s que añadí convertía en fallo una lentitud real de red: ~1 de cada 8 navegaciones a saucedemo.com tarda ~20 s ya en `domcontentloaded` (Chrome en Windows). Fallaba 1 de cada 4 corridas | Medido con 8 navegaciones instrumentadas; con 45 s, 0 fallos en 6 corridas (3 de ellas con lentitudes de 15 a 25 s). Causa exacta de la lentitud sin determinar |
 | Las reglas del `CLAUDE.md` dependían solo de la disciplina de quien escribe | `npm run lint` las comprueba; se probó que detecta infracciones reales |
 | El healer tenía `Write`/`MultiEdit` sin necesitarlos; el generator escribía specs con locators directos | Healer solo con `Edit`; ambos con sección "Project restrictions" |
 | Documentación desactualizada (README sin la estructura real, `PROMPTS.md` con afirmaciones inexactas) | Reescrita y corregida |

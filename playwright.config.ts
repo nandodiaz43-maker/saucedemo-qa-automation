@@ -16,7 +16,7 @@ export default defineConfig({
   forbidOnly: isCI,
   retries: isCI ? 1 : 0,
   workers: isCI ? 2 : undefined,
-  timeout: 30_000,
+  timeout: 60_000,
   expect: { timeout: 10_000 },
   reporter: [
     isCI ? ['github'] : ['list'],
@@ -29,7 +29,9 @@ export default defineConfig({
     // SauceDemo usa el atributo data-test en lugar de data-testid.
     testIdAttribute: 'data-test',
     actionTimeout: 10_000,
-    navigationTimeout: 20_000,
+    // Medido: ~1 de cada 8 navegaciones a saucedemo.com tarda ~20 s en responder desde Chrome en Windows
+    // (ocurre ya en domcontentloaded, no es un recurso de terceros). Con 20 s esa lentitud fallaba el test.
+    navigationTimeout: 45_000,
     trace: 'retain-on-failure',
     // Perfil de evidencia: 'full' (ejecución diaria) guarda captura y video de TODOS los tests;
     // por defecto solo se conservan cuando un test falla.
