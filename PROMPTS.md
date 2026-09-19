@@ -182,7 +182,7 @@ Criterio: el sandbox pasa tras el healer y git diff solo muestra cambios en page
 - El locator roto está en `pages/sandbox/SandboxLoginPage.ts` y no en `LoginPage`, porque romper `LoginPage` rompería la suite real.
 - `seed.spec.ts` se etiquetó `@seed` y, junto con `@healing-sandbox`, se excluyó de `npm test`; el seed generado era un test vacío que habría contado como pase.
 
-**Pendiente**: el criterio "el sandbox pasa tras el healer" **no se ha verificado**. Los agentes de `.claude/agents/` y el servidor MCP no están disponibles en la sesión en la que se crearon; hay que reiniciar Claude Code, aprobar el servidor `playwright-test` de `.mcp.json` e invocar el healer. Al hacerlo, registrar aquí el diff obtenido.
+**Verificación del criterio**: al crearse, los agentes y el servidor MCP no estaban disponibles en esa sesión; tras reiniciar Claude Code se invocó el healer y el criterio ("el sandbox pasa tras el healer; el diff solo toca `pages/`") **se cumplió**. Ver "Resultado real de la ejecución del healer" más abajo.
 
 ### Fase 7a. Resultado real de la ejecución del healer
 
@@ -209,6 +209,8 @@ Termina con tu reporte HEALED / NOT HEALED.
 **Verificación**: `git status` mostró un único archivo modificado, dentro de `pages/`. La aserción del test y `tests/` quedaron intactos. `npm run typecheck` sin errores, `npm run test:healing` 1 passed, `npm test` 6 passed.
 
 **Limitación observada**: el agente no dispone de shell, así que no pudo ejecutar `typecheck` ni `npm test` (lo que `CLAUDE.md` pide al terminar); se ejecutaron manualmente. Esto se debe considerar en el paso de CI (Fase 7b).
+
+**Segunda verificación (tras la revisión final)**: se volvió a invocar el healer después de cambiar su configuración (solo `Edit`, sin `Write`/`MultiEdit`; restricciones nuevas; `PW_DEMOS=1` en `.mcp.json`) con un prompt equivalente que además le pedía declarar explícitamente si no podía encontrar o ejecutar el test. Resultado: `HEALED`, mismo cambio de una línea en `pages/sandbox/SandboxLoginPage.ts`; su informe añadió por sí solo la advertencia de que un humano debe ejecutar `npm run verify` y revisar `git diff` (regla 8 nueva). `git status`/`git diff` confirmaron un único archivo modificado, `typecheck` sin errores y `test:healing` en verde con el cambio. El sandbox se restauró de nuevo con `git checkout`.
 
 **Estado del sandbox**: tras registrar el resultado se restauró `SandboxLoginPage.ts` a su versión rota (`git checkout`) para que `npm run test:healing` siga siendo una demo repetible.
 
